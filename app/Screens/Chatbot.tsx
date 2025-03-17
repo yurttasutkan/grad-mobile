@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { Text, View } from '@/components/Themed';
+import axios from 'axios';
 
 interface Message {
   id: string;
@@ -8,21 +9,13 @@ interface Message {
   sender: 'user' | 'bot';
 }
 
-const dummyResponses: { [key: string]: string } = {
-  hello: "Hi there! How can I help you?",
-  price: "You can check the latest prices in the dashboard!",
-  btc: "Bitcoin (BTC) is currently trending. Keep an eye on the market!",
-  eth: "Ethereum (ETH) is looking strong today. Consider checking its trends.",
-  default: "I'm still learning. Try asking about crypto prices or market trends!",
-};
-
 export default function ChatbotScreen() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (!input.trim()) return;
 
     const userMessage: Message = { id: Date.now().toString(), text: input, sender: 'user' };
@@ -30,17 +23,19 @@ export default function ChatbotScreen() {
     setInput('');
     setLoading(true);
 
-    setTimeout(() => {
-      const lowerCaseInput = input.toLowerCase();
-      const botReply = dummyResponses[lowerCaseInput] || dummyResponses.default;
-
-      const botMessage: Message = { id: Date.now().toString(), text: botReply, sender: 'bot' };
-      setMessages((prev) => [...prev, botMessage]);
-      setLoading(false);
+    try {
+      const response = await axios.post('http://10.0.2.2:8000/chat', { input });
+      console.log('Response:', response.data);
       
+      const botMessage: Message = { id: Date.now().toString(), text: response.data.response, sender: 'bot' };
+      setMessages((prev) => [...prev, botMessage]);
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
       flatListRef.current?.scrollToEnd({ animated: true });
-    }, 1000); // Simulating API delay
-  };
+    }
+    };
 
   return (
     <View style={styles.container}>

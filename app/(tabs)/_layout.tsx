@@ -1,59 +1,56 @@
-import React from 'react';
-import FontAwesome from '@expo/vector-icons/FontAwesome';
-import { Link, Tabs } from 'expo-router';
-import { Pressable } from 'react-native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { FontAwesome } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { TouchableOpacity } from 'react-native';
+import { DrawerActions } from '@react-navigation/native';
+import DashboardScreen from './Dashboard';
+import AssetsScreen from './Assets';
 
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
+const Tab = createBottomTabNavigator();
 
-// You can explore the built-in icon families and icons on the web at https://icons.expo.fyi/
-function TabBarIcon(props: {
-  name: React.ComponentProps<typeof FontAwesome>['name'];
-  color: string;
-}) {
-  return <FontAwesome size={28} style={{ marginBottom: -3 }} {...props} />;
-}
-
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+export default function TabsNavigator() {
+  const navigation = useNavigation(); // Get navigation instance
 
   return (
-    <Tabs
+    <Tab.Navigator
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
-        headerShown: useClientOnlyValue(false, true),
-      }}>
-      <Tabs.Screen
+        tabBarStyle: { backgroundColor: '#121212' },
+        tabBarActiveTintColor: '#f0b90b',
+        tabBarInactiveTintColor: '#fff',
+        headerStyle: { backgroundColor: '#121212' },
+        headerTintColor: '#f0b90b',
+      }}
+    >
+      <Tab.Screen
         name="Dashboard"
+        component={DashboardScreen}
         options={{
-          title: 'Dashboard',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable>
-                {({ pressed }) => (
-                  <FontAwesome
-                    name="info-circle"
-                    size={25}
-                    color={Colors[colorScheme ?? 'light'].text}
-                    style={{ marginRight: 15, opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
+          tabBarIcon: ({ color, size }) => <FontAwesome name="dashboard" size={size} color={color} />,
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
+              style={{ marginLeft: 15 }}
+            >
+              <FontAwesome name="bars" size={24} color="#f0b90b" />
+            </TouchableOpacity>
           ),
         }}
       />
-      <Tabs.Screen
+      <Tab.Screen
         name="Assets"
+        component={AssetsScreen}
         options={{
-          title: 'Assets',
-          tabBarIcon: ({ color }) => <TabBarIcon name="code" color={color} />,
+          tabBarIcon: ({ color, size }) => <FontAwesome name="briefcase" size={size} color={color} />,
+          headerLeft: () => (
+            <TouchableOpacity
+              onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
+              style={{ marginLeft: 15 }}
+            >
+              <FontAwesome name="bars" size={24} color="#f0b90b" />
+            </TouchableOpacity>
+          ),
         }}
       />
-    </Tabs>
+    </Tab.Navigator>
   );
 }

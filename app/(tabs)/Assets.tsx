@@ -3,6 +3,8 @@ import { StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react
 import { Text, View } from '@/components/Themed';
 import axios from 'axios';
 
+
+// Assetlerin üzerine 
 interface Asset {
   id: string;
   name: string;
