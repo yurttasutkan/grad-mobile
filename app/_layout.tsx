@@ -11,8 +11,8 @@ import { ActivityIndicator, View, TouchableOpacity, Text } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 // Import Screens
-import ChatbotScreen from './Screens/Chatbot';
-import LoginScreen from './Screens/LoginScreen';
+import ChatbotScreen from './(screens)/Chatbot';
+import LoginScreen from './(screens)/LoginScreen';
 import TabsNavigator from './(tabs)/_layout'; // Import Tabs as Home
 
 export {
@@ -26,8 +26,14 @@ export const unstable_settings = {
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
+export type DrawerParamList = {
+  Home: undefined;
+  Chatbot: undefined;
+  Logout: undefined;
+};
+
 // Drawer Navigator
-const Drawer = createDrawerNavigator();
+const Drawer = createDrawerNavigator<DrawerParamList>();
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({

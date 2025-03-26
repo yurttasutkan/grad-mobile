@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { Text, View } from '@/components/Themed';
 import axios from 'axios';
+import { chat } from '../api/chat';
 
 interface Message {
   id: string;
@@ -24,18 +25,19 @@ export default function ChatbotScreen() {
     setLoading(true);
 
     try {
-      const response = await axios.post('http://10.0.2.2:8000/chat', { input });
-      console.log('Response:', response.data);
-      
-      const botMessage: Message = { id: Date.now().toString(), text: response.data.response, sender: 'bot' };
+      const data = await chat(input);
+      console.log('Chat Response:', data);
+      const botMessage: Message = { id: Date.now().toString(), text: data.response, sender: 'bot' };
       setMessages((prev) => [...prev, botMessage]);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Chat Error:', error);
     } finally {
       setLoading(false);
       flatListRef.current?.scrollToEnd({ animated: true });
     }
     };
+
+
 
   return (
     <View style={styles.container}>

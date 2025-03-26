@@ -1,18 +1,23 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { View, TextInput, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 import { useRouter } from 'expo-router';
-
+import RegisterScreen from './RegisterScreen';
 const LoginScreen = () => {
   const authContext = useContext(AuthContext);
   const router = useRouter();
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true); // ✅ wait until component is mounted
+  }, []);
 
   if (!authContext) {
     throw new Error("AuthContext is undefined. Make sure you have wrapped the app with AuthProvider.");
   }
 
   const { login } = authContext;
-  
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -20,9 +25,9 @@ const LoginScreen = () => {
   const handleLogin = async () => {
     try {
       await login(email, password);
-      setTimeout(() => {
-        router.replace('../(tabs)'); // ✅ Delayed navigation after login
-      }, 100);
+      if (hasMounted) {
+        router.replace('../(tabs)');
+      }
     } catch (err) {
       if (typeof err === "string") {
         console.log('Error:', err);
@@ -35,12 +40,17 @@ const LoginScreen = () => {
       }
     }
   };
-  
+
+  const goToRegister = () => {
+    if (hasMounted) {
+      router.push('/(screens)/RegisterScreen');
+    }
+  };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Login</Text>
-      
+
       <TextInput
         style={styles.input}
         placeholder="Email"
@@ -48,7 +58,7 @@ const LoginScreen = () => {
         value={email}
         onChangeText={setEmail}
       />
-      
+
       <TextInput
         style={styles.input}
         placeholder="Password"
@@ -58,10 +68,9 @@ const LoginScreen = () => {
         onChangeText={setPassword}
       />
 
-    <TouchableOpacity onPress={() => router.push('/Screens/RegisterScreen')}>
-    <Text style={styles.registerLink}>Don't have an account? Register</Text>
-    </TouchableOpacity>
-
+      <TouchableOpacity onPress={goToRegister}>
+        <Text style={styles.registerLink}>Don't have an account? Register</Text>
+      </TouchableOpacity>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 

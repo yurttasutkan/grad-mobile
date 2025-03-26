@@ -1,10 +1,10 @@
 import axios from 'axios';
+import api from './api';
 
-const API_URL = "http://10.0.2.2:3000/api/auth"; // Change this if your backend is deployed
 
 export const register = async (name: string, lastName: string, email: string, password: string) => {
     try {
-        const response = await axios.post(`${API_URL}/register`, { name, lastName, email, password });
+        const response = await api.post(`/auth/register`, { name, lastName, email, password });
         return response.data;
     } catch (error) {
         if (axios.isAxiosError(error)) {
@@ -17,7 +17,8 @@ export const register = async (name: string, lastName: string, email: string, pa
 
 export const login = async (email: string, password: string) => {
     try {
-        const response = await axios.post(`${API_URL}/login`, { email, password });
+        console.log(' heree')
+        const response = await api.post(`/auth/login`, { email, password });
         return response.data;
     } catch (error) {
         if (axios.isAxiosError(error)) {

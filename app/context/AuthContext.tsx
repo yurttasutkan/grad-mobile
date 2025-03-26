@@ -31,11 +31,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('JWT Token:', data.user.token);
       
       await AsyncStorage.setItem('userToken', data.user.token);
-      setUserToken(data.user.token); // ✅ Fixed this
+      setUserToken(data.user.token);
 
     } catch (error) {
       console.error('Login failed:', error);
-      throw error; // Ensure error propagates
+      throw error;
     }
   };
 
