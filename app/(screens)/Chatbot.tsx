@@ -1,13 +1,24 @@
 import { useState, useRef } from 'react';
 import { StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { Text, View } from '@/components/Themed';
-import axios from 'axios';
 import { chat } from '../api/chat';
+import {
+  CandlestickChart,
+  CandlestickChartProvider,
+} from 'react-native-wagmi-charts';
 
 interface Message {
   id: string;
   text: string;
   sender: 'user' | 'bot';
+  chartData?: {
+    timestamp: number;
+    open: string;
+    high: string;
+    low: string;
+    close: string;
+  }[];
+  signal?: string;
 }
 
 export default function ChatbotScreen() {
@@ -26,18 +37,50 @@ export default function ChatbotScreen() {
 
     try {
       const data = await chat(input);
-      console.log('Chat Response:', data);
-      const botMessage: Message = { id: Date.now().toString(), text: data.response, sender: 'bot' };
+      const botMessage: Message = {
+        id: Date.now().toString(),
+        text: data.response,
+        sender: 'bot',
+        chartData: data.chartData,
+        signal: data.signal,
+      };
       setMessages((prev) => [...prev, botMessage]);
     } catch (error) {
       console.error('Chat Error:', error);
     } finally {
       setLoading(false);
-      flatListRef.current?.scrollToEnd({ animated: true });
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 300);
     }
-    };
+  };
 
+  const renderItem = ({ item }: { item: Message }) => {
+    const chartCandles = item.chartData?.map((d) => ({
+      timestamp: d.timestamp * 1000,
+      open: Number(d.open),
+      high: Number(d.high),
+      low: Number(d.low),
+      close: Number(d.close),
+    }));
 
+    return (
+      <View style={[styles.messageContainer, item.sender === 'user' ? styles.userMessage : styles.botMessage]}>
+        <Text style={styles.messageText}>{item.text}</Text>
+
+        {item.sender === 'bot' && chartCandles && chartCandles.length > 0 && (
+          <View style={styles.chartContainer}>
+            <CandlestickChartProvider data={chartCandles}>
+              <CandlestickChart height={200}>
+                <CandlestickChart.Candles />
+              </CandlestickChart>
+            </CandlestickChartProvider>
+            {item.signal && (
+              <Text style={styles.signalText}>Signal: {item.signal}</Text>
+            )}
+          </View>
+        )}
+      </View>
+    );
+  };
 
   return (
     <View style={styles.container}>
@@ -47,15 +90,11 @@ export default function ChatbotScreen() {
         ref={flatListRef}
         data={messages}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={[styles.messageContainer, item.sender === 'user' ? styles.userMessage : styles.botMessage]}>
-            <Text style={styles.messageText}>{item.text}</Text>
-          </View>
-        )}
+        renderItem={renderItem}
         contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
       />
 
-      {loading && <ActivityIndicator size="small" color="#f0b90b" />}
+      {loading && <ActivityIndicator size="small" color="#f0b90b" style={{ marginBottom: 10 }} />}
 
       <View style={styles.inputContainer}>
         <TextInput
@@ -90,7 +129,7 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 10,
     marginVertical: 5,
-    maxWidth: '80%',
+    maxWidth: '100%',
     alignSelf: 'flex-start',
   },
   userMessage: {
@@ -103,12 +142,22 @@ const styles = StyleSheet.create({
   messageText: {
     color: '#fff',
   },
+  chartContainer: {
+    marginTop: 10,
+  },
+  signalText: {
+    marginTop: 8,
+    color: '#f0b90b',
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderTopWidth: 1,
     borderColor: '#333',
     paddingVertical: 5,
+    backgroundColor: '#121212',
   },
   input: {
     flex: 1,
