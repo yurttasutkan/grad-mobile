@@ -1,75 +1,90 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import { Text, View } from '@/components/Themed';
-import axios from 'axios';
+import { useNavigation } from '@react-navigation/native';
+import { getPortfolio, placeBuyOrder, placeSellOrder } from '../api/order';
 
-
-// Assetlerin üzerine 
 interface Asset {
-  id: string;
-  name: string;
-  symbol: string;
-  apiId: string; // CoinCap API ID
-  holdings: number; // Amount owned
-  avgBuyPrice: number; // User's average buy price
-  price?: number; // Live market price
+  asset: string;
+  free: number;
+  locked: number;
+  total: number;
+  avg_buy_price: number;
+  current_price: number;
+  pnl: number;
+  pnl_percent: number;
 }
 
-const dummyAssets: Asset[] = [
-  { id: '1', name: 'Bitcoin', symbol: 'BTC', apiId: 'bitcoin', holdings: 0.5, avgBuyPrice: 40000 },
-  { id: '2', name: 'Ethereum', symbol: 'ETH', apiId: 'ethereum', holdings: 2.0, avgBuyPrice: 3500 },
-  { id: '3', name: 'Solana', symbol: 'SOL', apiId: 'solana', holdings: 10, avgBuyPrice: 100 },
-  { id: '4', name: 'Binance Coin', symbol: 'BNB', apiId: 'binance-coin', holdings: 5, avgBuyPrice: 450 },
-  { id: '5', name: 'Cardano', symbol: 'ADA', apiId: 'cardano', holdings: 500, avgBuyPrice: 1.50 },
-  { id: '6', name: 'Ripple', symbol: 'XRP', apiId: 'xrp', holdings: 1000, avgBuyPrice: 0.75 },
-  { id: '7', name: 'Dogecoin', symbol: 'DOGE', apiId: 'dogecoin', holdings: 5000, avgBuyPrice: 0.10 },
-];
-
 export default function AssetScreen() {
-  const [assets, setAssets] = useState(dummyAssets);
+  const [assets, setAssets] = useState<Asset[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const navigation = useNavigation();
 
-  useEffect(() => {
-    
-    fetchPrices();
-    const interval = setInterval(fetchPrices, 20000); // Refresh every 30 sec
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchPrices = async () => {
+  const fetchPortfolio = async (isRefresh = false) => {
     try {
-      setLoading(true);
-      const responses = await Promise.all(
-        dummyAssets.map((asset) =>
-          axios.get(`https://api.coincap.io/v2/assets/${asset.apiId}`)
-        )
-      );
-      
-      const updatedAssets = assets.map((asset, index) => ({
-        ...asset,
-        price: parseFloat(responses[index].data.data.priceUsd),
-      }));
+      if (isRefresh) setRefreshing(true);
+      else setLoading(true);
 
-      setAssets(updatedAssets);
+      const data = await getPortfolio();
+      setAssets(data.portfolio);
     } catch (error) {
-      console.error('Error fetching crypto prices:', error);
+      Alert.alert('Error', 'Failed to fetch portfolio');
     } finally {
-      setLoading(false);
+      isRefresh ? setRefreshing(false) : setLoading(false);
     }
   };
 
-  // Calculate total portfolio value & total profit dynamically
-  const totalValue = assets.reduce((sum, asset) => sum + (asset.price || 0) * asset.holdings, 0);
-  const totalCost = assets.reduce((sum, asset) => sum + asset.avgBuyPrice * asset.holdings, 0);
+  const handleBuy = async (symbol: string) => {
+    try {
+      await placeBuyOrder(symbol, 0.01);
+      Alert.alert('Success', `Buy order placed for ${symbol}`);
+      fetchPortfolio();
+    } catch (err) {
+      Alert.alert('Buy Failed', JSON.stringify(err));
+    }
+  };
+
+  const handleSell = async (symbol: string) => {
+    try {
+      await placeSellOrder(symbol, 0.01);
+      Alert.alert('Success', `Sell order placed for ${symbol}`);
+      fetchPortfolio();
+    } catch (err) {
+      Alert.alert('Sell Failed', JSON.stringify(err));
+    }
+  };
+
+  useEffect(() => {
+    fetchPortfolio();
+
+    const interval = setInterval(() => fetchPortfolio(), 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity onPress={() => fetchPortfolio()} style={{ marginRight: 15 }}>
+          <Text style={{ color: '#f0b90b', fontWeight: 'bold', fontSize: 16 }}>🔄</Text>
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation]);
+
+  const totalValue = assets.reduce((sum, a) => sum + a.total * a.current_price, 0);
+  const totalCost = assets.reduce((sum, a) => sum + a.avg_buy_price * a.total, 0);
   const totalProfit = totalValue - totalCost;
   const profitColor = totalProfit >= 0 ? styles.profitText : styles.lossText;
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>My Crypto Portfolio</Text>
+      <Text style={styles.title}>My Binance Testnet Portfolio</Text>
       <Text style={styles.totalValue}>Total Value: ${totalValue.toFixed(2)}</Text>
       <Text style={[styles.totalProfit, profitColor]}>
-        {totalProfit >= 0 ? `📈 Profit: +$${totalProfit.toFixed(2)}` : `📉 Loss: -$${Math.abs(totalProfit).toFixed(2)}`}
+        {totalProfit >= 0
+          ? `📈 Profit: +$${totalProfit.toFixed(2)}`
+          : `📉 Loss: -$${Math.abs(totalProfit).toFixed(2)}`}
       </Text>
 
       <View style={styles.separator} />
@@ -79,36 +94,55 @@ export default function AssetScreen() {
       ) : (
         <FlatList
           data={assets}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item.asset}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => fetchPortfolio(true)}
+              colors={['#f0b90b']}
+              tintColor="#f0b90b"
+            />
+          }
           renderItem={({ item }) => {
-            const totalAssetValue = (item.price || 0) * item.holdings;
-            const totalCost = item.avgBuyPrice * item.holdings;
-            const profit = totalAssetValue - totalCost;
-            const profitPercentage = ((profit / totalCost) * 100).toFixed(2);
-            const profitTextStyle = profit >= 0 ? styles.profitText : styles.lossText;
+            const totalValue = item.total * item.current_price;
+            const profitTextStyle = item.pnl >= 0 ? styles.profitText : styles.lossText;
 
             return (
               <View style={styles.assetItem}>
-                <View style={styles.assetInfo}>
-                  <Text style={styles.assetName}>{item.name} ({item.symbol})</Text>
-                  <Text style={styles.assetHoldings}>Holdings: {item.holdings} {item.symbol}</Text>
-                </View>
-                <View style={styles.assetValue}>
-                  <Text style={styles.assetPrice}>${item.price?.toFixed(2) || 'Loading...'}</Text>
-                  <Text style={styles.assetTotal}>Total: ${totalAssetValue.toFixed(2)}</Text>
-                  <Text style={[styles.profit, profitTextStyle]}>
-                    {profit >= 0 ? `+${profitPercentage}%` : `${profitPercentage}%`}
+                <View style={styles.assetHeader}>
+                  <Text style={styles.assetName}>{item.asset}</Text>
+                  <Text style={[styles.profitPercent, profitTextStyle]}>
+                    {item.pnl >= 0 ? '+' : ''}
+                    {item.pnl_percent.toFixed(2)}%
                   </Text>
+                </View>
+
+                <View style={styles.assetDetails}>
+                  <View style={styles.leftColumn}>
+                    <Text style={styles.assetHoldings}>Holdings: {item.total}</Text>
+                    <Text style={styles.assetTotal}>Total: ${totalValue.toFixed(2)}</Text>
+                  </View>
+                  <View style={styles.rightColumn}>
+                    <Text style={styles.assetPrice}>Price: ${item.current_price.toFixed(2)}</Text>
+                    <Text style={[styles.pnlAmount, profitTextStyle]}>
+                      PnL: ${item.pnl.toFixed(2)}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.assetActions}>
+                  <TouchableOpacity style={styles.actionButton} onPress={() => handleBuy(`${item.asset}USDT`)}>
+                    <Text style={styles.actionText}>Buy</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.actionButton} onPress={() => handleSell(`${item.asset}USDT`)}>
+                    <Text style={styles.actionText}>Sell</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             );
           }}
         />
       )}
-
-      <TouchableOpacity style={styles.refreshButton} onPress={fetchPrices}>
-        <Text style={styles.refreshText}>🔄 Refresh</Text>
-      </TouchableOpacity>
     </View>
   );
 }
@@ -117,7 +151,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#121212',
+    backgroundColor: '#121212', // consistent dark mode
   },
   title: {
     fontSize: 26,
@@ -138,10 +172,10 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   profitText: {
-    color: '#00ff00', // Green for profit
+    color: '#00ff00',
   },
   lossText: {
-    color: '#ff4d4d', // Red for loss
+    color: '#ff4d4d',
   },
   separator: {
     height: 1,
@@ -149,40 +183,87 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   assetItem: {
+    backgroundColor: '#1e1e1e', // consistent background color
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  assetHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#333',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 10,
+    alignItems: 'center',
     marginBottom: 10,
-    elevation: 5,
+    backgroundColor: '#1e1e1e', // consistent background color
   },
   assetName: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#f0b90b',
+  },
+  profitPercent: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  assetDetails: {
+    backgroundColor: '#1e1e1e', // consistent background color
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  leftColumn: {
+    flex: 1,
+    backgroundColor: '#1e1e1e', // consistent background color
+  },
+  rightColumn: {
+    flex: 1,
+    alignItems: 'flex-end',
+    backgroundColor: '#1e1e1e', // consistent background color
   },
   assetHoldings: {
     fontSize: 16,
-    color: '#aaa',
-  },
-  assetInfo: {
-    backgroundColor: '#1a1a1a',
-    flex: 1,
-  },
-  assetValue: {
-    alignItems: 'flex-end',
-    backgroundColor: '#1a1a1a',
-  },
-  assetPrice: {
-    fontSize: 18,
-    color: '#f0b90b',
+    color: '#ccc',
   },
   assetTotal: {
     fontSize: 16,
     color: '#fff',
+  },
+  assetPrice: {
+    fontSize: 16,
+    color: '#f0b90b',
+  },
+  pnlAmount: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  assetActions: {
+    backgroundColor: '#1e1e1e', // consistent background color
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+  actionButton: {
+    backgroundColor: '#f0b90b',
+    paddingVertical: 8,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+  },
+  actionText: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    color: '#121212',
+  },
+  assetInfo: {
+    backgroundColor: '#1e1e1e', // consistent background color
+    marginBottom: 10,
+  },
+  assetValue: {
+    backgroundColor: '#1e1e1e', // consistent background color
+    marginBottom: 10,
   },
   profit: {
     fontSize: 16,

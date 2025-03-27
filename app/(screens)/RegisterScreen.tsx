@@ -1,11 +1,13 @@
 import React, { useState, useContext } from 'react';
 import { View, TextInput, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
-import { useRouter } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from 'react-native-screens/lib/typescript/native-stack/types';
+import { AuthStackParamList } from './AuthNavigator';
 
 const RegisterScreen = () => {
   const authContext = useContext(AuthContext);
-  const router = useRouter();
+  const navigation = useNavigation<NativeStackNavigationProp<AuthStackParamList>>();  
 
   if (!authContext) {
     throw new Error("AuthContext is undefined. Make sure you have wrapped the app with AuthProvider.");
@@ -23,9 +25,13 @@ const RegisterScreen = () => {
   const handleRegister = async () => {
     try {
       await register(name, lastName, email, password);
-      router.replace('../Screens/LoginScreen');
+      
       setSuccess("Registration successful! You can now log in.");
       setError("");
+      // Navigate after a short delay (optional)
+      setTimeout(() => {
+        navigation.replace('Login');
+      }, 1000);
     } catch (err) {
       setSuccess("");
       if (typeof err === "string") {

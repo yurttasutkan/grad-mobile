@@ -3,11 +3,18 @@ import { View, TextInput, TouchableOpacity, Text, StyleSheet } from 'react-nativ
 import { AuthContext } from '../context/AuthContext';
 import { useRouter } from 'expo-router';
 import RegisterScreen from './RegisterScreen';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from 'react-native-screens/lib/typescript/native-stack/types';
+import { AuthStackParamList } from './AuthNavigator';
+
+
+
+
 const LoginScreen = () => {
   const authContext = useContext(AuthContext);
   const router = useRouter();
   const [hasMounted, setHasMounted] = useState(false);
-
+  const navigation = useNavigation<NativeStackNavigationProp<AuthStackParamList>>();  
   useEffect(() => {
     setHasMounted(true); // ✅ wait until component is mounted
   }, []);
@@ -42,9 +49,7 @@ const LoginScreen = () => {
   };
 
   const goToRegister = () => {
-    if (hasMounted) {
-      router.push('/(screens)/RegisterScreen');
-    }
+    navigation.navigate('Register'); // name must match your route
   };
 
   return (

@@ -14,6 +14,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import ChatbotScreen from './(screens)/Chatbot';
 import LoginScreen from './(screens)/LoginScreen';
 import TabsNavigator from './(tabs)/_layout'; // Import Tabs as Home
+import AuthNavigator from './(screens)/AuthNavigator';
 
 export {
   ErrorBoundary,
@@ -125,7 +126,7 @@ function RootLayoutNav() {
             />
           </Drawer.Navigator>
         ) : (
-          <LoginScreen />
+          <AuthNavigator /> // 👈 THIS is key
         )}
       </GestureHandlerRootView>
     </ThemeProvider>

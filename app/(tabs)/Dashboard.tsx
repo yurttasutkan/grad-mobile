@@ -47,7 +47,6 @@ export default function DashboardScreen() {
   const [topLosers, setTopLosers] = useState<CoinData[]>([]);
   const [showActions, setShowActions] = useState(false);
   const [selectedTab, setSelectedTab] = useState<'gainers' | 'losers'>('gainers');
-  const router = useRouter();
   const [accordionHeight, setAccordionHeight] = useState(0);
   const expanded = useSharedValue(0);
   const rotate = useSharedValue(0);
@@ -165,7 +164,7 @@ const handleOpenChatbot = () => {
         </View>
 
         <Text style={styles.subtitle}>
-          {selectedTab === 'gainers' ? 'Top 5 Gainers (24h)' : 'Top 5 Losers (24h)'}
+          {selectedTab === 'gainers' ? 'Daily Top Gainers' : 'Daily Top Losers'}
         </Text>
 
         <View style={styles.priceWrapper}>
