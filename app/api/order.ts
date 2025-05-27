@@ -51,3 +51,17 @@ export const placeSellOrder = async (symbol: string, quantity: number, orderType
     }
   }
 };
+
+export const getTransactions = async () => {
+  try {
+    const response = await api.get('/order/transactions');
+    console.log('Fetched transactions:', response.data.transactions);
+    return response.data.transactions;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      throw error.response?.data || 'Failed to fetch transactions';
+    } else {
+      throw 'Failed to fetch transactions';
+    }
+  }
+};
