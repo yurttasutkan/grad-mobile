@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
-import { StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, RefreshControl } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, RefreshControl, TextInput } from 'react-native';
 import { Text, View } from '@/components/Themed';
 import { useNavigation } from '@react-navigation/native';
 import { getPortfolio, placeBuyOrder, placeSellOrder } from '../api/order';
+import Slider from '@react-native-community/slider';
 
 interface Asset {
   asset: string;
@@ -20,6 +21,76 @@ export default function AssetScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const navigation = useNavigation();
+  const [modalVisible, setModalVisible] = useState(false);
+  const [orderType, setOrderType] = useState<'buy' | 'sell' | null>(null);
+  const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
+  const [amount, setAmount] = useState<string>('0.01');
+  const [maxAmount, setMaxAmount] = useState<number>(1);
+  const [usdEquivalent, setUsdEquivalent] = useState<number>(0);
+  const sliderValueRef = useRef(0);
+  // ETHUSDT → 0.001
+  const stepSize = selectedSymbol ? getStepSizeForSymbol(selectedSymbol) : 0.001;
+  
+  function getStepSizeForSymbol(symbol: string): number {
+    const stepSizes: { [key: string]: number } = {
+      BTCUSDT: 0.000001,
+      ETHUSDT: 0.0001,
+      BNBUSDT: 0.01,
+      SOLUSDT: 0.01,
+      XRPUSDT: 0.1,
+      ADAUSDT: 1,
+      AVAXUSDT: 0.01,
+      DOGEUSDT: 1,
+      DOTUSDT: 0.01,
+      LINKUSDT: 0.01,
+    };
+
+    return stepSizes[symbol.toUpperCase()] || 0.0001; // Default step size
+  }
+
+  const openOrderModal = (symbol: string, type: 'buy' | 'sell') => {
+    const assetSymbol = symbol.replace('USDT', '');
+    const assetData = assets.find(a => a.asset === assetSymbol || a.asset === 'USDT');
+    const usdt = assets.find(a => a.asset === 'USDT');
+
+    const isBuy = type === 'buy';
+    const current = assetData?.current_price || 0;
+    const max = isBuy
+      ? (usdt?.free || 0) / current
+      : assetData?.free || 0;
+
+    setSelectedSymbol(symbol);
+    setOrderType(type);
+    setAmount((max * 0.25).toFixed(6)); // Start at 25%
+    setMaxAmount(max);
+    setUsdEquivalent((max * 0.25) * current);
+    setModalVisible(true);
+  };
+
+
+  const submitOrder = async () => {
+    if (!selectedSymbol || !orderType) return;
+    const numericAmount = parseFloat(amount);
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      Alert.alert('Invalid amount', 'Please enter a valid number');
+      return;
+    }
+
+    try {
+      if (orderType === 'buy') {
+        await placeBuyOrder(selectedSymbol, numericAmount);
+        Alert.alert('Success', `Buy order placed for ${selectedSymbol}`);
+      } else {
+        await placeSellOrder(selectedSymbol, numericAmount);
+        Alert.alert('Success', `Sell order placed for ${selectedSymbol}`);
+      }
+      fetchPortfolio();
+    } catch (err) {
+      Alert.alert(`${orderType === 'buy' ? 'Buy' : 'Sell'} Failed`, JSON.stringify(err));
+    } finally {
+      setModalVisible(false);
+    }
+  };
 
   const fetchPortfolio = async (isRefresh = false) => {
     try {
@@ -35,42 +106,12 @@ export default function AssetScreen() {
     }
   };
 
-  const handleBuy = async (symbol: string) => {
-    try {
-      await placeBuyOrder(symbol, 0.01);
-      Alert.alert('Success', `Buy order placed for ${symbol}`);
-      fetchPortfolio();
-    } catch (err) {
-      Alert.alert('Buy Failed', JSON.stringify(err));
-    }
-  };
-
-  const handleSell = async (symbol: string) => {
-    try {
-      await placeSellOrder(symbol, 0.01);
-      Alert.alert('Success', `Sell order placed for ${symbol}`);
-      fetchPortfolio();
-    } catch (err) {
-      Alert.alert('Sell Failed', JSON.stringify(err));
-    }
-  };
-
   useEffect(() => {
     fetchPortfolio();
 
     const interval = setInterval(() => fetchPortfolio(), 60000);
     return () => clearInterval(interval);
   }, []);
-
-  useEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <TouchableOpacity onPress={() => fetchPortfolio()} style={{ marginRight: 15 }}>
-          <Text style={{ color: '#f0b90b', fontWeight: 'bold', fontSize: 16 }}>🔄</Text>
-        </TouchableOpacity>
-      ),
-    });
-  }, [navigation]);
 
   const totalValue = assets.reduce((sum, a) => sum + a.total * a.current_price, 0);
   const totalCost = assets.reduce((sum, a) => sum + a.avg_buy_price * a.total, 0);
@@ -131,18 +172,82 @@ export default function AssetScreen() {
                 </View>
 
                 <View style={styles.assetActions}>
-                  <TouchableOpacity style={styles.actionButton} onPress={() => handleBuy(`${item.asset}USDT`)}>
+                  <TouchableOpacity style={styles.actionButton} onPress={() => openOrderModal(`${item.asset}USDT`, 'buy')}>
                     <Text style={styles.actionText}>Buy</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.actionButton} onPress={() => handleSell(`${item.asset}USDT`)}>
+                  <TouchableOpacity style={styles.actionButton} onPress={() => openOrderModal(`${item.asset}USDT`, 'sell')}>
                     <Text style={styles.actionText}>Sell</Text>
                   </TouchableOpacity>
+
                 </View>
               </View>
             );
           }}
         />
       )}
+      {modalVisible && (
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>
+              {orderType === 'buy' ? 'Buy' : 'Sell'} {selectedSymbol}
+            </Text>
+
+            <Text style={styles.modalSubtitle}>Amount: {amount} ({usdEquivalent.toFixed(2)} USDT)</Text>
+
+            <Slider
+              minimumValue={0}
+              maximumValue={maxAmount}
+              step={stepSize} // e.g., 0.001 for ETH
+              value={parseFloat(amount)}
+              minimumTrackTintColor="#f0b90b"
+              thumbTintColor="#f0b90b"
+              onValueChange={(val) => {
+                // Update without triggering re-render yet
+                sliderValueRef.current = val;
+              }}
+              onSlidingComplete={(val) => {
+                // Round to step precision (Binance usually uses 3 decimals like 0.001)
+                const rounded = Math.floor(val / stepSize) * stepSize;
+                const fixed = rounded.toFixed(stepSize < 0.01 ? 3 : 2);
+
+                setAmount(fixed);
+
+                const asset = assets.find(a => selectedSymbol?.startsWith(a.asset));
+                const price = asset?.current_price || 0;
+                setUsdEquivalent(rounded * price);
+              }}
+              style={{ width: '100%', marginVertical: 20 }}
+            />
+
+
+
+            <TextInput
+              style={styles.modalInput}
+              keyboardType="numeric"
+              value={amount}
+              onChangeText={(val) => {
+                setAmount(val);
+                const asset = assets.find(a => selectedSymbol?.startsWith(a.asset));
+                const price = asset?.current_price || 0;
+                setUsdEquivalent(parseFloat(val || '0') * price);
+              }}
+              placeholder="Enter amount"
+              placeholderTextColor="#999"
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalButton} onPress={submitOrder}>
+                <Text style={styles.modalButtonText}>Confirm</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.modalButton]} onPress={() => setModalVisible(false)}>
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+        </View>
+      )}
+
     </View>
   );
 }
@@ -281,4 +386,57 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#121212',
   },
+  modalBackdrop: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  modalContainer: {
+    width: '80%',
+    backgroundColor: '#1e1e1e',
+    padding: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    color: '#f0b90b',
+    marginBottom: 10,
+  },
+  modalInput: {
+    width: '100%',
+    backgroundColor: '#333',
+    padding: 10,
+    borderRadius: 8,
+    color: '#fff',
+    fontSize: 16,
+    marginBottom: 15,
+  },
+  modalActions: {
+    backgroundColor: '#1e1e1e',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  modalButton: {
+    flex: 1,
+    backgroundColor: '#f0b90b',
+    padding: 10,
+    borderRadius: 8,
+    marginHorizontal: 5,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    fontWeight: 'bold',
+    color: '#121212',
+  },
+  modalSubtitle: {
+    color: '#ccc',
+    fontSize: 16,
+    marginBottom: 8,
+  },
+
 });

@@ -23,6 +23,7 @@ import { AntDesign } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
 import { DrawerParamList } from '../_layout';
+import { getTransactions } from '../api/order';
 
 
 interface CoinData {
@@ -42,7 +43,7 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 }
 
 export default function DashboardScreen() {
-  const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();  
+  const navigation = useNavigation<DrawerNavigationProp<DrawerParamList>>();
   const [topGainers, setTopGainers] = useState<CoinData[]>([]);
   const [topLosers, setTopLosers] = useState<CoinData[]>([]);
   const [showActions, setShowActions] = useState(false);
@@ -51,46 +52,50 @@ export default function DashboardScreen() {
   const expanded = useSharedValue(0);
   const rotate = useSharedValue(0);
   const gainersOpacity = useSharedValue(1);
-const losersOpacity = useSharedValue(0);
-const gainersTranslate = useSharedValue(0);
-const losersTranslate = useSharedValue(50);
+  const losersOpacity = useSharedValue(0);
+  const gainersTranslate = useSharedValue(0);
+  const losersTranslate = useSharedValue(50);
 
-const gainersStyle = useAnimatedStyle(() => ({
-  opacity: gainersOpacity.value,
-  transform: [{ translateX: gainersTranslate.value }],
-}));
+  const [transactions, setTransactions] = useState<any[]>([]);
 
-const losersStyle = useAnimatedStyle(() => ({
-  opacity: losersOpacity.value,
-  transform: [{ translateX: losersTranslate.value }],
-}));
-const handleTabSwitch = (tab: 'gainers' | 'losers') => {
-  if (tab === 'gainers') {
-    gainersOpacity.value = withTiming(1, { duration: 300 });
-    gainersTranslate.value = withTiming(0, { duration: 300 });
-    losersOpacity.value = withTiming(0, { duration: 300 });
-    losersTranslate.value = withTiming(50, { duration: 300 });
-  } else {
-    gainersOpacity.value = withTiming(0, { duration: 300 });
-    gainersTranslate.value = withTiming(-50, { duration: 300 });
-    losersOpacity.value = withTiming(1, { duration: 300 });
-    losersTranslate.value = withTiming(0, { duration: 300 });
-  }
-  setSelectedTab(tab);
-};
+  
+
+  const gainersStyle = useAnimatedStyle(() => ({
+    opacity: gainersOpacity.value,
+    transform: [{ translateX: gainersTranslate.value }],
+  }));
+
+  const losersStyle = useAnimatedStyle(() => ({
+    opacity: losersOpacity.value,
+    transform: [{ translateX: losersTranslate.value }],
+  }));
+  const handleTabSwitch = (tab: 'gainers' | 'losers') => {
+    if (tab === 'gainers') {
+      gainersOpacity.value = withTiming(1, { duration: 300 });
+      gainersTranslate.value = withTiming(0, { duration: 300 });
+      losersOpacity.value = withTiming(0, { duration: 300 });
+      losersTranslate.value = withTiming(50, { duration: 300 });
+    } else {
+      gainersOpacity.value = withTiming(0, { duration: 300 });
+      gainersTranslate.value = withTiming(-50, { duration: 300 });
+      losersOpacity.value = withTiming(1, { duration: 300 });
+      losersTranslate.value = withTiming(0, { duration: 300 });
+    }
+    setSelectedTab(tab);
+  };
 
   const toggleAccordion = () => {
     expanded.value = expanded.value === 0 ? withTiming(1, { duration: 150 }) : withTiming(0, { duration: 150 });
     rotate.value = rotate.value === 0 ? withTiming(1, { duration: 200 }) : withTiming(0, { duration: 200 });
     setShowActions(!showActions);
   };
-  
+
   const animatedStyle = useAnimatedStyle(() => ({
     maxHeight: expanded.value === 1 ? accordionHeight : 0,
     opacity: withTiming(expanded.value, { duration: 200 }),
   }));
-  
-  
+
+
   const rotateStyle = useAnimatedStyle(() => ({
     transform: [
       {
@@ -99,9 +104,9 @@ const handleTabSwitch = (tab: 'gainers' | 'losers') => {
     ],
   }));
 
-const handleOpenChatbot = () => {
-  navigation.navigate('Chatbot');
-};
+  const handleOpenChatbot = () => {
+    navigation.navigate('Chatbot');
+  };
 
   useEffect(() => {
     const fetchPrices = async () => {
@@ -168,44 +173,44 @@ const handleOpenChatbot = () => {
         </Text>
 
         <View style={styles.priceWrapper}>
-  {selectedTab === 'gainers' && (
-    <Animated.View style={gainersStyle}>
-      <FlatList
-        data={topGainers.slice(0, 6)}
-        keyExtractor={(item) => item.symbol}
-        numColumns={3}
-        renderItem={({ item }) => (
-          <Text style={styles.priceText}>
-            <Text style={styles.symbolText}>{item.symbol.replace('USDT', '')}</Text>
-            {'\n'}${item.price.toFixed(4)}
-            {'\n'}<Text style={styles.gainerText}>▲ {item.percent_change_24h}%</Text>
-          </Text>
-        )}
-      />
-    </Animated.View>
-  )}
+          {selectedTab === 'gainers' && (
+            <Animated.View style={gainersStyle}>
+              <FlatList
+                data={topGainers.slice(0, 6)}
+                keyExtractor={(item) => item.symbol}
+                numColumns={3}
+                renderItem={({ item }) => (
+                  <Text style={styles.priceText}>
+                    <Text style={styles.symbolText}>{item.symbol.replace('USDT', '')}</Text>
+                    {'\n'}${item.price.toFixed(4)}
+                    {'\n'}<Text style={styles.gainerText}>▲ {item.percent_change_24h}%</Text>
+                  </Text>
+                )}
+              />
+            </Animated.View>
+          )}
 
-  {selectedTab === 'losers' && (
-    <Animated.View style={losersStyle}>
-      <FlatList
-        data={topLosers.slice(0, 6)}
-        keyExtractor={(item) => item.symbol}
-        numColumns={3}
-        renderItem={({ item }) => (
-          <Text style={styles.priceText}>
-            <Text style={styles.symbolText}>{item.symbol.replace('USDT', '')}</Text>
-            {'\n'}${item.price.toFixed(4)}
-            {'\n'}<Text style={styles.loserText}>▼ {item.percent_change_24h}%</Text>
-          </Text>
-        )}
-      />
-    </Animated.View>
-  )}
-</View>
+          {selectedTab === 'losers' && (
+            <Animated.View style={losersStyle}>
+              <FlatList
+                data={topLosers.slice(0, 6)}
+                keyExtractor={(item) => item.symbol}
+                numColumns={3}
+                renderItem={({ item }) => (
+                  <Text style={styles.priceText}>
+                    <Text style={styles.symbolText}>{item.symbol.replace('USDT', '')}</Text>
+                    {'\n'}${item.price.toFixed(4)}
+                    {'\n'}<Text style={styles.loserText}>▼ {item.percent_change_24h}%</Text>
+                  </Text>
+                )}
+              />
+            </Animated.View>
+          )}
+        </View>
 
 
 
-            
+
         <TouchableOpacity onPress={toggleAccordion} style={styles.accordionHeader}>
           <View style={styles.accordionRow}>
             <Text style={styles.sectionTitle}>Latest Actions</Text>
@@ -233,7 +238,7 @@ const handleOpenChatbot = () => {
 
         {/* Animated container */}
         <Animated.View style={[styles.animatedAccordionContainer, animatedStyle]}>
-          <View style = {{    backgroundColor: '#121212'}} pointerEvents={showActions ? 'auto' : 'none'}>
+          <View style={{ backgroundColor: '#121212' }} pointerEvents={showActions ? 'auto' : 'none'}>
             {dummyActions.map((item) => (
               <Text key={item.id} style={styles.actionText}>
                 {item.action} - {item.time}
@@ -245,7 +250,7 @@ const handleOpenChatbot = () => {
         <TouchableOpacity style={styles.button} onPress={handleOpenChatbot}>
           <Text style={styles.buttonText}>🤖 Open Chatbot</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.button} onPress={() => console.log('Trade Now')}>
+        <TouchableOpacity style={styles.button} onPress={() => navigation.navigate('TradeScreen')}>
           <Text style={styles.buttonText}>📈 Trade Now</Text>
         </TouchableOpacity>
       </RNView>
@@ -350,7 +355,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     width: '100%',
   },
-  
+
   priceText: {
     width: '30%', // ~3 columns with spacing
     backgroundColor: '#1e1e1e',
@@ -362,7 +367,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginHorizontal: '1.5%',
   },
-  
+
   priceContainer: {
     backgroundColor: '#333',
     padding: 15,
@@ -396,7 +401,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    
+
   },
   hiddenAccordion: {
     position: 'absolute',
@@ -416,5 +421,5 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#f0b90b',
   },
-  
+
 });
