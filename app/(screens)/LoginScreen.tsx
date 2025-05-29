@@ -1,5 +1,5 @@
 import React, { useState, useContext, useEffect } from 'react';
-import { View, TextInput, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { View, TextInput, TouchableOpacity, Text, StyleSheet, Image } from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 import { useRouter } from 'expo-router';
 import RegisterScreen from './RegisterScreen';
@@ -54,6 +54,10 @@ const LoginScreen = () => {
 
   return (
     <View style={styles.container}>
+      <Image
+        source={require('../../assets/images/logo.png')}
+        style={{ width: 250, height: 250, alignSelf: 'center' }}
+      />
       <Text style={styles.title}>Login</Text>
 
       <TextInput
@@ -89,7 +93,6 @@ const LoginScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
     padding: 20,
     backgroundColor: '#121212',
   },

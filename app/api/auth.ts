@@ -46,3 +46,23 @@ export const getUser = async (token: string) => {
     }
   }
 };
+export const api_keys = async (apiKey: string, secretKey: string, token: string) => {
+  try {
+    const response = await api.patch(
+      '/api-keys',
+      { apiKey, secretKey },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      throw error.response?.data || "Failed to set API keys!";
+    } else {
+      throw "Failed to set API keys!";
+    }
+  }
+}

@@ -23,7 +23,8 @@ import { AntDesign } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { DrawerNavigationProp } from '@react-navigation/drawer';
 import { DrawerParamList } from '../_layout';
-import { getTransactions } from '../api/order';
+import { getTransactions, saveTransaction } from '../api/order';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 
 interface CoinData {
@@ -31,12 +32,6 @@ interface CoinData {
   price: number;
   percent_change_24h: number;
 }
-
-const dummyActions = [
-  { id: '1', action: 'Bought 0.01 BTC', time: '2 hours ago' },
-  { id: '2', action: 'Sold 2 ETH', time: '5 hours ago' },
-  { id: '3', action: 'Bought 50 SOL', time: '1 day ago' },
-];
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -55,10 +50,10 @@ export default function DashboardScreen() {
   const losersOpacity = useSharedValue(0);
   const gainersTranslate = useSharedValue(0);
   const losersTranslate = useSharedValue(50);
-
+  const [token, setToken] = useState<string | null>(null);
   const [transactions, setTransactions] = useState<any[]>([]);
 
-  
+
 
   const gainersStyle = useAnimatedStyle(() => ({
     opacity: gainersOpacity.value,
@@ -109,6 +104,35 @@ export default function DashboardScreen() {
   };
 
   useEffect(() => {
+    AsyncStorage.getItem('userToken')
+      .then((storedToken) => {
+        if (storedToken) {
+          setToken(storedToken);
+        } else {
+          console.error('No token found in AsyncStorage');
+        }
+      })
+      .catch((error) => {
+        console.error('Error retrieving token from AsyncStorage:', error);
+      });
+  }
+    , []);
+
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      try {
+        if (token) {
+          const data = await getTransactions(token);
+          setTransactions(data);
+        }
+      } catch (error) {
+        console.error('Failed to load transactions:', error);
+      }
+    };
+
+    fetchTransactions();
+  }, [token]);
+  useEffect(() => {
     const fetchPrices = async () => {
       try {
         const data = await getAllCryptoPrices();
@@ -137,7 +161,7 @@ export default function DashboardScreen() {
     <ScrollView style={styles.container}>
       <RNView style={styles.innerContainer}>
         <Image
-          source={{ uri: 'https://cryptologos.cc/logos/bitcoin-btc-logo.png' }}
+          source={require('../../assets/images/logo.png')}
           style={styles.logo}
         />
         <Text style={styles.title}>Crypto Chatbot Dashboard</Text>
@@ -229,20 +253,31 @@ export default function DashboardScreen() {
             }
           }}
         >
-          {dummyActions.map((item) => (
-            <Text key={item.id} style={styles.actionText}>
-              {item.action} - {item.time}
+          {transactions.map((item: any, idx: number) => (
+            <Text key={item.id ?? idx} style={styles.actionText}>
+              {item.orderType ? `${item.orderType === 'buy' ? 'Buy' : 'Sell'} ${item.symbol.replace('USDT', '')} (${item.quantity})` : 'Action'}
             </Text>
           ))}
         </View>
 
         {/* Animated container */}
         <Animated.View style={[styles.animatedAccordionContainer, animatedStyle]}>
-          <View style={{ backgroundColor: '#121212' }} pointerEvents={showActions ? 'auto' : 'none'}>
-            {dummyActions.map((item) => (
-              <Text key={item.id} style={styles.actionText}>
-                {item.action} - {item.time}
-              </Text>
+          <View style={{ backgroundColor: '#121212', paddingHorizontal: 0 }} pointerEvents={showActions ? 'auto' : 'none'}>
+            {transactions.map((item: any, idx: number) => (
+          <Text
+            key={item.id ?? idx}
+            style={[
+              styles.actionText,
+              { paddingHorizontal: 0, marginHorizontal: 0, width: '100%', textAlign: 'left' },
+            ]}
+          >
+            {item.orderType
+              ? `${item.orderType === 'buy' ? 'Bought' : 'Sold'} ${item.symbol.replace('USDT', '')} (${item.quantity}) at $${item.price.toFixed(4)}`
+              : 'Unknown Action'}
+            {item.date
+              ? `\n${new Date(item.date).toLocaleString()}`
+              : ''}
+          </Text>
             ))}
           </View>
         </Animated.View>
@@ -269,8 +304,8 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   logo: {
-    width: 80,
-    height: 80,
+    width: 120,
+    height: 120,
     marginBottom: 20,
   },
   title: {

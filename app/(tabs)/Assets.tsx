@@ -4,6 +4,7 @@ import { Text, View } from '@/components/Themed';
 import { useNavigation } from '@react-navigation/native';
 import { getPortfolio, placeBuyOrder, placeSellOrder } from '../api/order';
 import Slider from '@react-native-community/slider';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface Asset {
   asset: string;
@@ -30,7 +31,7 @@ export default function AssetScreen() {
   const sliderValueRef = useRef(0);
   // ETHUSDT → 0.001
   const stepSize = selectedSymbol ? getStepSizeForSymbol(selectedSymbol) : 0.001;
-  
+
   function getStepSizeForSymbol(symbol: string): number {
     const stepSizes: { [key: string]: number } = {
       BTCUSDT: 0.000001,
@@ -77,11 +78,16 @@ export default function AssetScreen() {
     }
 
     try {
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token || !selectedSymbol) {
+        Alert.alert('Error', 'Missing token or symbol');
+        return;
+      }
       if (orderType === 'buy') {
-        await placeBuyOrder(selectedSymbol, numericAmount);
+        await placeBuyOrder(token, selectedSymbol, numericAmount);
         Alert.alert('Success', `Buy order placed for ${selectedSymbol}`);
       } else {
-        await placeSellOrder(selectedSymbol, numericAmount);
+        await placeSellOrder(token, selectedSymbol, numericAmount);
         Alert.alert('Success', `Sell order placed for ${selectedSymbol}`);
       }
       fetchPortfolio();
@@ -96,8 +102,12 @@ export default function AssetScreen() {
     try {
       if (isRefresh) setRefreshing(true);
       else setLoading(true);
-
-      const data = await getPortfolio();
+      const token = await AsyncStorage.getItem('userToken');
+      if (!token) {
+        Alert.alert('Error', 'You must be logged in to view your portfolio');
+        return;
+      }
+      const data = await getPortfolio(token);
       setAssets(data.portfolio);
     } catch (error) {
       Alert.alert('Error', 'Failed to fetch portfolio');
