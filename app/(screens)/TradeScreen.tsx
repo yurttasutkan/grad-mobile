@@ -4,10 +4,13 @@ import { useNavigation } from '@react-navigation/native';
 import { getAllCryptoPrices } from '../api/coin';
 import { placeBuyOrder, placeSellOrder } from '../api/order';
 
-type Coin = {
+interface Coin {
   symbol: string;
   price: number;
-};
+  percent_change_24h: number;
+}
+
+
 
 export default function TradeScreen() {
   const [coins, setCoins] = useState<Coin[]>([]);
@@ -57,6 +60,7 @@ export default function TradeScreen() {
           renderItem={({ item }) => (
             <View style={styles.coinItem}>
               <Text style={styles.symbol}>{item.symbol}</Text>
+              <Text style={styles.symbol}>%{item.percent_change_24h}</Text>
               <Text style={styles.price}>${item.price.toFixed(4)}</Text>
               <View style={styles.actions}>
                 <TouchableOpacity
