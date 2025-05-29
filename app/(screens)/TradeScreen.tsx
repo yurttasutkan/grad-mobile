@@ -59,8 +59,17 @@ export default function TradeScreen() {
           keyExtractor={(item) => item.symbol}
           renderItem={({ item }) => (
             <View style={styles.coinItem}>
-              <Text style={styles.symbol}>{item.symbol}</Text>
-              <Text style={styles.symbol}>%{item.percent_change_24h}</Text>
+              <View style={styles.headerRow}>
+                <Text style={styles.symbol}>{item.symbol}</Text>
+                <Text
+                  style={[
+                    styles.percentChange,
+                    item.percent_change_24h >= 0 ? styles.positiveChange : styles.negativeChange,
+                  ]}
+                >
+                  {item.percent_change_24h >= 0 ? '▲' : '▼'} %{Math.abs(item.percent_change_24h).toFixed(2)}
+                </Text>
+              </View>
               <Text style={styles.price}>${item.price.toFixed(4)}</Text>
               <View style={styles.actions}>
                 <TouchableOpacity
@@ -77,6 +86,7 @@ export default function TradeScreen() {
                 </TouchableOpacity>
               </View>
             </View>
+
           )}
         />
       )}
@@ -91,36 +101,69 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   title: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: 'bold',
     color: '#f0b90b',
     textAlign: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   coinItem: {
     backgroundColor: '#1e1e1e',
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 14,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
   },
   symbol: {
-    fontSize: 18,
-    color: '#f0b90b',
+    fontSize: 20,
     fontWeight: 'bold',
+    color: '#f0b90b',
+  },
+  percentChange: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  positiveChange: {
+    backgroundColor: '#003c1a',
+    color: '#00e676',
+  },
+  negativeChange: {
+    backgroundColor: '#3d0000',
+    color: '#ff5252',
   },
   price: {
     fontSize: 16,
-    color: '#fff',
-    marginBottom: 10,
+    color: '#ffffff',
+    marginBottom: 12,
+    marginTop: 2,
   },
   actions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   button: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
   buyButton: {
     backgroundColor: '#00c853',
@@ -130,6 +173,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     color: '#fff',
-    fontWeight: 'bold',
+    fontWeight: '600',
+    fontSize: 14,
   },
 });
